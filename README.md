@@ -1,8 +1,28 @@
-# GostWebUI
+<div align="center">
 
-GostWebUI 是一个面向 Windows 的本地端口转发管理工具。程序常驻系统托盘，通过仅监听回环地址的 Web 页面管理转发规则、进程状态、连接测试与日志。
+<h1>GostWebUI</h1>
 
-普通 TCP 转发由独立安装的 [GOST（GO Simple Tunnel）](https://github.com/go-gost/gost) 可执行文件完成；MySQL TLS 中继模式由 GostWebUI 在进程内实现，不依赖 `gost.exe`。
+<p><strong>本地优先的 Windows 端口转发管理工具</strong></p>
+
+<p>通过系统托盘和仅监听回环地址的 Web 页面，集中管理 GOST TCP 转发规则、链路诊断与运行日志；另提供进程内 MySQL TLS 中继。</p>
+
+<p>
+  <a href="https://github.com/mdjs147/GostWebUI/releases"><img alt="release" src="https://img.shields.io/github/v/release/mdjs147/GostWebUI?display_name=tag&amp;sort=semver&amp;label=release"></a>
+  <a href="LICENSE"><img alt="license: MIT" src="https://img.shields.io/badge/license-MIT-68a51c"></a>
+  <img alt="platform: Windows x64" src="https://img.shields.io/badge/platform-Windows%20x64-0078d4">
+  <img alt=".NET 10" src="https://img.shields.io/badge/.NET-10-512bd4">
+  <img alt="UI: Embedded Web" src="https://img.shields.io/badge/UI-Embedded%20Web-0f766e">
+</p>
+
+</div>
+
+---
+
+## 这是什么
+
+在 Windows 上维护多条 GOST 命令、进程和日志并不直观。GostWebUI 把这些操作收进一个常驻托盘程序：在本地网页中创建和启停转发规则，选择直连、SOCKS5 或 HTTP 代理出口，诊断本地监听与目标链路，并查看和归档运行日志。
+
+普通 TCP 转发由用户独立安装的 [GOST（GO Simple Tunnel）](https://github.com/go-gost/gost) 可执行文件完成，GostWebUI 负责配置、进程管理和状态展示。对于需要兼容首包嗅探或懒连接的场景，项目还提供不依赖 `gost.exe` 的进程内 MySQL TLS 中继模式。
 
 ## 项目关系
 
