@@ -1,0 +1,48 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <AssemblyName>GostWebUI</AssemblyName>
+    <RootNamespace>PortForwarder</RootNamespace>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>app.ico</ApplicationIcon>
+    <Version>2.1.1</Version>
+  </PropertyGroup>
+
+  <!-- 托盘图标从嵌入资源读取(资源名与 TrayService.LoadTrayIcon 硬绑定),单文件发布下也可靠 -->
+  <ItemGroup>
+    <EmbeddedResource Include="app.ico" LogicalName="PortForwarder.app.ico" />
+  </ItemGroup>
+
+  <!-- 同一进程同时使用 WinForms(托盘) 与 ASP.NET Core(内嵌 Web) -->
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <!-- 前端静态资源双轨:开发构建复制到输出目录(改前端刷新即见);
+       同时嵌入 exe(默认资源名 PortForwarder.wwwroot.<文件名>,与 StaticFiles 的回退逻辑对应),
+       发布时不落地 wwwroot,单文件发布仅剩一个 exe。目录名避免用连字符等非 C# 标识符字符,
+       否则 MSBuild 资源名与 EmbeddedFileProvider 的路径映射会不一致。 -->
+  <ItemGroup>
+    <Content Include="wwwroot\**\*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>Never</CopyToPublishDirectory>
+    </Content>
+    <EmbeddedResource Include="wwwroot\**\*" />
+  </ItemGroup>
+  <!-- gost.exe 保持独立文件:开发构建复制到输出目录便于调试;
+       发布不携带(CopyToPublishDirectory=Never),产物只有一个 GostWebUI.exe,用户按 README 自行下载 gost.exe 放同目录 -->
+  <ItemGroup Condition="Exists('gost.exe')">
+    <None Remove="gost.exe" />
+    <Content Include="gost.exe">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>Never</CopyToPublishDirectory>
+    </Content>
+  </ItemGroup>
+
+</Project>

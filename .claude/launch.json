@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "gostwebui-dev",
+      "runtimeExecutable": "GostWebUI\\bin\\Debug\\net10.0-windows\\GostWebUI.exe",
+      "runtimeArgs": [],
+      "port": 38517
+    },
+    {
+      "name": "attach-38517",
+      "runtimeExecutable": "GostWebUI\\gost.exe",
+      "runtimeArgs": ["-L", "tcp://127.0.0.1:48999/127.0.0.1:38517"],
+      "port": 48999
+    }
+  ]
+}

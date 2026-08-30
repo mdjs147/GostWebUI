@@ -1,0 +1,36 @@
+# ---- 构建产物 ----
+[Bb]in/
+[Oo]bj/
+publish/
+*.pdb
+*.dll
+*.exe
+
+# gost.exe 等第三方二进制不入库(用户按 README 自行下载放 exe 同目录)
+# 上面的 *.exe 已覆盖,这里显式列出以示意
+gost.exe
+GostWebUI.exe
+
+# ---- Visual Studio / IDE 本地文件 ----
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# ---- Rider / JetBrains ----
+.idea/
+
+# ---- 运行时生成的本地配置 / 规则 / 日志(机器相关,含私密转发目标) ----
+config.json
+rules.json
+logs/
+*.log
+
+# ---- Claude Code 本地设置(保留 .claude/launch.json 供协作) ----
+.claude/settings.local.json
+
+# ---- 杂项 ----
+Thumbs.db
+desktop.ini
+*.tmp

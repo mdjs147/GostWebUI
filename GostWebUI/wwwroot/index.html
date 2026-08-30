@@ -1,0 +1,1259 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GostWebUI</title>
+  <link rel="icon" href="favicon.ico" />
+  <!--
+    无构建单页前端:纯原生 JS + fetch,无任何外部 CDN 依赖(离线可用)。
+    与后端契约见 docs/api-contract.md(REST 层 camelCase)。
+  -->
+  <style>
+    /* ===== 主题变量(浅色为默认,html[data-theme=dark] 覆盖) ===== */
+    :root {
+      --bg: #f3f4f7;
+      --card: #ffffff;
+      --card-h: #f6f7fa;
+      --bd: #e4e6ec;
+      --line: #cfd3dc;
+      --fg: #191b20;
+      --mut: #6f7480;
+      --acc: #3b6ef6;
+      --acc-h: #2f5ce0;
+      --acc-soft: #e9efff;
+      --ok: #189a4a;
+      --ok-soft: #e5f6ec;
+      --err: #d93a3a;
+      --err-soft: #fdecec;
+      --warn: #c77712;
+      --term-bg: #14161c;
+      --term-fg: #ced2da;
+      --term-mut: #6b7280;
+      --shadow: 0 1px 2px rgba(18, 24, 40, .06);
+      --shadow-lg: 0 12px 40px rgba(18, 24, 40, .18);
+      --radius: 12px;
+    }
+    html[data-theme="dark"] {
+      --bg: #0e1013;
+      --card: #16191f;
+      --card-h: #1b1f27;
+      --bd: #262b35;
+      --line: #3a4150;
+      --fg: #e7e9ee;
+      --mut: #8b919d;
+      --acc: #5b84f8;
+      --acc-h: #6d92fb;
+      --acc-soft: #1b2438;
+      --ok: #35c46e;
+      --ok-soft: #14281c;
+      --err: #f16a6a;
+      --err-soft: #321a1a;
+      --warn: #e0a44a;
+      --term-bg: #0a0c10;
+      --term-fg: #c6cad2;
+      --term-mut: #565d6a;
+      --shadow: 0 1px 2px rgba(0, 0, 0, .5);
+      --shadow-lg: 0 16px 48px rgba(0, 0, 0, .6);
+    }
+
+    /* ===== 基础 ===== */
+    * { box-sizing: border-box; }
+    html, body { margin: 0; }
+    /* hidden 属性兜底:UA 的 [hidden]{display:none} 会被 .btn 等作者 display 规则覆盖,这里强制生效 */
+    [hidden] { display: none !important; }
+    body {
+      background: var(--bg);
+      color: var(--fg);
+      font-family: "Segoe UI", "Microsoft YaHei UI", "Microsoft YaHei", system-ui, sans-serif;
+      font-size: 14px;
+      line-height: 1.5;
+      transition: background .25s, color .25s;
+    }
+    code, .mono { font-family: Consolas, "Cascadia Mono", Menlo, monospace; }
+    .ic { width: 15px; height: 15px; stroke: currentColor; stroke-width: 2; fill: none;
+          stroke-linecap: round; stroke-linejoin: round; flex: none; }
+
+    /* ===== 按钮 ===== */
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+      padding: 7px 14px; border: 1px solid var(--bd); border-radius: 9px;
+      background: var(--card); color: var(--fg);
+      font-size: 13.5px; font-family: inherit; cursor: pointer; user-select: none;
+      transition: background .15s, border-color .15s, color .15s, opacity .15s;
+      white-space: nowrap;
+    }
+    .btn:hover { background: var(--card-h); border-color: var(--line); }
+    .btn:disabled { opacity: .5; cursor: not-allowed; }
+    .btn.primary { background: var(--acc); border-color: var(--acc); color: #fff; }
+    .btn.primary:hover { background: var(--acc-h); border-color: var(--acc-h); }
+    .btn.ghost { border-color: transparent; background: transparent; color: var(--mut); }
+    .btn.ghost:hover { background: var(--card-h); color: var(--fg); }
+    .btn.danger { color: var(--err); }
+    .btn.danger:hover { border-color: var(--err); background: var(--err-soft); }
+    .btn.ghost.danger:hover { border-color: transparent; }
+    .btn.sm { padding: 5px 10px; font-size: 12.5px; border-radius: 8px; }
+    .btn.icon { width: 34px; height: 34px; padding: 0; }
+    .btn .spin { width: 13px; height: 13px; border: 2px solid currentColor; border-top-color: transparent;
+                 border-radius: 50%; animation: rot .7s linear infinite; flex: none; }
+    @keyframes rot { to { transform: rotate(360deg); } }
+
+    /* ===== 顶栏 ===== */
+    .topbar {
+      position: sticky; top: 0; z-index: 20;
+      display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+      padding: 10px 20px;
+      background: var(--card); border-bottom: 1px solid var(--bd);
+    }
+    .brand { display: flex; align-items: center; gap: 10px; margin-right: auto; }
+    .brand-logo {
+      width: 34px; height: 34px; border-radius: 10px; color: #fff;
+      background: linear-gradient(135deg, var(--acc), #7c5cf0);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .brand-logo .ic { width: 18px; height: 18px; }
+    .brand h1 { font-size: 15.5px; margin: 0; font-weight: 600; letter-spacing: .2px; }
+    .brand .ver { font-size: 11.5px; color: var(--mut); margin-left: -4px; align-self: flex-end; padding-bottom: 1px; }
+    .health {
+      display: inline-flex; align-items: center; gap: 5px;
+      font-size: 12px; color: var(--ok);
+      background: var(--ok-soft); border-radius: 999px; padding: 2px 9px;
+    }
+    .health::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+    .health.off { color: var(--err); background: var(--err-soft); }
+
+    /* ===== 主体 ===== */
+    main { max-width: 980px; margin: 0 auto; padding: 22px 20px 48px; }
+    .overview { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+    .overview .stat { color: var(--mut); font-size: 13px; }
+    .overview .stat b { color: var(--fg); font-weight: 600; }
+    .overview .spacer, .rule-foot .spacer { flex: 1; }
+
+    .card {
+      background: var(--card); border: 1px solid var(--bd); border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+
+    /* ===== 规则卡片 ===== */
+    #ruleList { display: flex; flex-direction: column; gap: 12px; }
+    .rule-card { padding: 14px 18px 12px; transition: border-color .2s; }
+    .rule-card.running { border-color: color-mix(in srgb, var(--ok) 45%, var(--bd)); }
+
+    .rule-head { display: flex; align-items: center; gap: 9px; }
+    .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--line); flex: none; transition: background .2s; }
+    .rule-card.running .dot { background: var(--ok); animation: pulse 2s ease-out infinite; }
+    @keyframes pulse {
+      0%   { box-shadow: 0 0 0 0 color-mix(in srgb, var(--ok) 45%, transparent); }
+      70%  { box-shadow: 0 0 0 7px transparent; }
+      100% { box-shadow: 0 0 0 0 transparent; }
+    }
+    .rule-name { font-size: 14.5px; font-weight: 600; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .badge-auto {
+      font-size: 11px; color: var(--acc); background: var(--acc-soft);
+      border-radius: 5px; padding: 1px 6px; flex: none;
+    }
+    .badge-mysql {
+      font-size: 11px; color: var(--warn); background: color-mix(in srgb, var(--warn) 15%, transparent);
+      border-radius: 5px; padding: 1px 6px; flex: none;
+    }
+    .rule-state { margin-left: auto; font-size: 12.5px; color: var(--mut); flex: none; }
+    .rule-card.running .rule-state { color: var(--ok); }
+
+    /* toggle 开关 */
+    .switch { position: relative; width: 40px; height: 22px; flex: none; cursor: pointer; }
+    .switch input { position: absolute; opacity: 0; width: 0; height: 0; }
+    .switch .track { position: absolute; inset: 0; border-radius: 999px; background: var(--line); transition: background .2s; }
+    .switch .track::after {
+      content: ""; position: absolute; left: 3px; top: 3px; width: 16px; height: 16px;
+      border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.25); transition: transform .2s;
+    }
+    .switch input:checked + .track { background: var(--ok); }
+    .switch input:checked + .track::after { transform: translateX(18px); }
+    .switch input:disabled + .track { opacity: .55; cursor: not-allowed; }
+
+    /* 链路可视化 */
+    .chain { display: flex; align-items: stretch; margin: 13px 0 11px; }
+    .node {
+      flex: 1; min-width: 0; padding: 8px 12px 7px;
+      background: var(--bg); border: 1px solid var(--bd); border-radius: 10px;
+    }
+    .node-tag { font-size: 11px; color: var(--mut); letter-spacing: .5px; margin-bottom: 2px; }
+    .node-addr { font-family: Consolas, "Cascadia Mono", monospace; font-size: 13px; word-break: break-all; }
+    .link { flex: none; width: 44px; position: relative; display: flex; align-items: center; }
+    .link-line { position: relative; width: 100%; height: 2px; background: var(--line); }
+    .link-line::after {
+      content: ""; position: absolute; right: -1px; top: 50%; transform: translateY(-50%);
+      border: 5px solid transparent; border-left-color: var(--line); border-right-width: 0;
+    }
+    .rule-card.running .link-line {
+      background: repeating-linear-gradient(90deg, var(--ok) 0 6px, transparent 6px 12px);
+      animation: flow .9s linear infinite;
+    }
+    .rule-card.running .link-line::after { border-left-color: var(--ok); }
+    @keyframes flow { to { background-position: 12px 0; } }
+    .link-label {
+      position: absolute; left: 50%; top: 50%; transform: translate(-50%, -130%);
+      font-size: 11px; color: var(--mut); background: var(--card); padding: 0 4px; white-space: nowrap;
+    }
+
+    /* 诊断分段结果(节点内) */
+    .seg {
+      margin-top: 4px; min-height: 17px; font-size: 12px;
+      display: flex; align-items: center; gap: 4px; color: var(--mut);
+      overflow: hidden; white-space: nowrap;
+    }
+    .seg .seg-txt { overflow: hidden; text-overflow: ellipsis; }
+    .seg.ok { color: var(--ok); }
+    .seg.fail { color: var(--err); }
+    .seg .spin { width: 11px; height: 11px; border: 2px solid currentColor; border-top-color: transparent;
+                 border-radius: 50%; animation: rot .7s linear infinite; flex: none; }
+
+    .rule-foot { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+
+    /* 空状态 */
+    .empty {
+      border: 1.5px dashed var(--line); border-radius: var(--radius);
+      padding: 44px 20px; text-align: center; color: var(--mut);
+    }
+    .empty .ic { width: 30px; height: 30px; stroke-width: 1.5; margin-bottom: 8px; }
+    .empty p { margin: 0 0 14px; }
+
+    /* ===== 日志面板 ===== */
+    .logpanel { margin-top: 20px; overflow: hidden; }
+    .log-head {
+      display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+      padding: 10px 14px; border-bottom: 1px solid var(--bd);
+    }
+    .log-head strong { font-size: 13.5px; margin-right: 2px; }
+    .log-count { font-size: 12px; color: var(--mut); }
+    .log-follow { display: inline-flex; align-items: center; gap: 5px; font-size: 12.5px; color: var(--mut); cursor: pointer; user-select: none; }
+    .log-follow input { accent-color: var(--acc); cursor: pointer; }
+    .log-view {
+      height: 260px; overflow: auto; padding: 10px 14px;
+      background: var(--term-bg); color: var(--term-fg);
+      font-family: Consolas, "Cascadia Mono", monospace; font-size: 12.5px; line-height: 1.65;
+    }
+    .log-view:empty::before { content: "暂无日志输出"; color: var(--term-mut); }
+    .log-line { display: flex; gap: 10px; }
+    .log-time { color: var(--term-mut); flex: none; }
+    .log-text { white-space: pre-wrap; word-break: break-all; }
+
+    /* ===== 表单控件 ===== */
+    .input, select.input {
+      width: 100%; padding: 8px 10px; border: 1px solid var(--bd); border-radius: 8px;
+      background: var(--card); color: var(--fg); font-size: 13.5px; font-family: inherit;
+      outline: none; transition: border-color .15s, box-shadow .15s;
+    }
+    .input:focus { border-color: var(--acc); box-shadow: 0 0 0 3px var(--acc-soft); }
+    .input:disabled { opacity: .5; background: var(--bg); }
+    .field { margin-bottom: 12px; }
+    .field > label { display: block; font-size: 12.5px; color: var(--mut); margin-bottom: 5px; }
+    .grid2 { display: grid; grid-template-columns: 1.6fr 1fr; gap: 10px; }
+    .form-sec {
+      font-size: 12px; font-weight: 600; color: var(--mut); letter-spacing: .6px;
+      margin: 16px 0 9px; padding-top: 12px; border-top: 1px dashed var(--bd);
+    }
+    .form-sec:first-child { margin-top: 0; padding-top: 0; border-top: none; }
+    .hint { font-size: 12px; color: var(--mut); margin: 5px 0 0; }
+    .hint a { color: var(--acc); text-decoration: none; }
+    .hint a:hover { text-decoration: underline; }
+    .field-row { display: flex; align-items: center; gap: 14px; justify-content: space-between; margin-bottom: 12px; }
+    .field-title { font-size: 13.5px; }
+
+    /* gost.exe 完整性状态(设置对话框) */
+    .integrity-row { display: flex; align-items: center; gap: 10px; justify-content: space-between; }
+    .integrity-state { font-size: 13px; color: var(--mut); }
+    .integrity-state.ok { color: var(--ok); }
+    .integrity-state.err { color: var(--err); }
+    #s_integrityFp { white-space: pre-line; word-break: break-all; }
+
+    /* ===== 对话框 ===== */
+    dialog {
+      border: 1px solid var(--bd); border-radius: 14px; padding: 0;
+      background: var(--card); color: var(--fg); box-shadow: var(--shadow-lg);
+      width: 460px; max-width: calc(100vw - 32px);
+    }
+    dialog::backdrop { background: rgba(10, 12, 16, .45); backdrop-filter: blur(2px); }
+    dialog[open] { animation: pop .16s ease-out; }
+    @keyframes pop { from { opacity: 0; transform: translateY(8px) scale(.98); } }
+    .dlg-title { margin: 0; padding: 15px 20px 13px; font-size: 15px; border-bottom: 1px solid var(--bd); }
+    .dlg-body { padding: 16px 20px 6px; max-height: 68vh; overflow: auto; }
+    .dlg-foot { display: flex; justify-content: flex-end; gap: 8px; padding: 13px 20px 15px; border-top: 1px solid var(--bd); }
+    #cfmDlg { width: 380px; }
+    #cfmDesc { color: var(--mut); font-size: 13px; margin: 0; }
+    #cfmDlg .dlg-body { padding-bottom: 14px; }
+
+    /* ===== Toast ===== */
+    #toasts { position: fixed; right: 18px; bottom: 18px; z-index: 100; display: flex; flex-direction: column; gap: 8px; }
+    .toast {
+      display: flex; align-items: flex-start; gap: 8px; max-width: 420px;
+      padding: 10px 14px; border-radius: 10px; font-size: 13px;
+      background: var(--card); border: 1px solid var(--bd); box-shadow: var(--shadow-lg);
+      animation: slidein .2s ease-out;
+    }
+    .toast .ic { margin-top: 2px; }
+    .toast.ok .ic { color: var(--ok); }
+    .toast.err .ic { color: var(--err); }
+    .toast.out { opacity: 0; transform: translateX(12px); transition: all .25s; }
+    @keyframes slidein { from { opacity: 0; transform: translateX(16px); } }
+
+    /* ===== 主题图标切换 ===== */
+    .only-dark { display: none; }
+    html[data-theme="dark"] .only-dark { display: block; }
+    html[data-theme="dark"] .only-light { display: none; }
+
+    /* ===== 窄屏适配 ===== */
+    @media (max-width: 720px) {
+      .chain { flex-direction: column; }
+      .link { width: auto; height: 26px; justify-content: center; }
+      .link-line { width: 2px; height: 100%; margin: 0 auto; background: var(--line); }
+      .link-line::after {
+        right: auto; left: 50%; top: auto; bottom: -1px; transform: translateX(-50%);
+        border: 5px solid transparent; border-top-color: var(--line); border-bottom-width: 0; border-left-color: transparent;
+      }
+      .rule-card.running .link-line {
+        background: repeating-linear-gradient(180deg, var(--ok) 0 6px, transparent 6px 12px);
+        animation: flowv .9s linear infinite;
+      }
+      .rule-card.running .link-line::after { border-top-color: var(--ok); border-left-color: transparent; }
+      .link-label { transform: translate(10%, -50%); }
+      .grid2 { grid-template-columns: 1fr; }
+      .rule-state { display: none; }
+    }
+    @keyframes flowv { to { background-position: 0 12px; } }
+  </style>
+</head>
+<body>
+  <!-- ===== 内联 SVG 图标库(无外部依赖) ===== -->
+  <svg xmlns="http://www.w3.org/2000/svg" style="display:none">
+    <symbol id="i-swap" viewBox="0 0 24 24"><path d="M4 7h13M14 3l4 4-4 4M20 17H7M10 21l-4-4 4-4"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-zap" viewBox="0 0 24 24"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></symbol>
+    <symbol id="i-edit" viewBox="0 0 24 24"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 4.5v15l12-7.5L7 4.5z"/></symbol>
+    <symbol id="i-stop" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="1.5"/></symbol>
+    <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></symbol>
+    <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M1 12h2M21 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4"/></symbol>
+    <symbol id="i-moon" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></symbol>
+  </svg>
+
+  <!-- ===== 顶栏 ===== -->
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-logo"><svg class="ic"><use href="#i-swap"/></svg></div>
+      <h1>GostWebUI</h1>
+      <span class="ver" id="appVer"></span>
+      <span class="health" id="healthBadge">服务在线</span>
+    </div>
+    <button class="btn sm" id="startAll"><svg class="ic"><use href="#i-play"/></svg>全部启动</button>
+    <button class="btn sm" id="stopAll"><svg class="ic"><use href="#i-stop"/></svg>全部停止</button>
+    <button class="btn icon" id="openSettings" title="设置"><svg class="ic"><use href="#i-sliders"/></svg></button>
+    <button class="btn icon" id="themeToggle" title="切换深/浅主题">
+      <svg class="ic only-light"><use href="#i-moon"/></svg>
+      <svg class="ic only-dark"><use href="#i-sun"/></svg>
+    </button>
+  </header>
+
+  <main>
+    <!-- 概览行 -->
+    <div class="overview">
+      <span class="stat" id="ruleStat">共 <b>0</b> 条规则 · <b>0</b> 运行中</span>
+      <span class="spacer"></span>
+      <button class="btn primary" id="addRule"><svg class="ic"><use href="#i-plus"/></svg>新增规则</button>
+    </div>
+
+    <!-- 规则卡片列表 -->
+    <section id="ruleList"></section>
+
+    <!-- 日志面板 -->
+    <section class="card logpanel">
+      <div class="log-head">
+        <strong>运行日志</strong>
+        <select class="input" id="logRule" style="width:auto;min-width:150px;padding:5px 8px"></select>
+        <span class="log-count" id="logCount">0 行</span>
+        <span class="spacer" style="flex:1"></span>
+        <label class="log-follow"><input type="checkbox" id="logFollow" checked />自动滚动</label>
+        <button class="btn sm ghost" id="copyLog"><svg class="ic"><use href="#i-copy"/></svg>复制</button>
+        <button class="btn sm ghost" id="clearLog"><svg class="ic"><use href="#i-x"/></svg>清屏</button>
+      </div>
+      <div class="log-view" id="logView"></div>
+    </section>
+  </main>
+
+  <!-- ===== 新增 / 编辑规则对话框 ===== -->
+  <dialog id="ruleDlg">
+    <h3 class="dlg-title" id="ruleDlgTitle">新增规则</h3>
+    <div class="dlg-body">
+      <input type="hidden" id="f_id" />
+      <div class="form-sec">基本信息</div>
+      <div class="field"><label>规则名称</label><input class="input" id="f_name" /></div>
+      <div class="field"><label>转发模式</label>
+        <select class="input" id="f_mode">
+          <option value="gost">普通 TCP 转发(gost)</option>
+          <option value="mysql">MySQL TLS 中继(懒连接兼容)</option>
+        </select>
+        <p class="hint" id="f_modeHint" hidden>经「会做首包嗅探/懒连接的中转」访问 MySQL 时,普通转发会卡在初始握手超时;本模式在进程内做 SSLRequest 分段补全中继,不需 gost.exe,出口仅支持 直连 或 socks5。<br><strong>⚠ 客户端必须启用 TLS(只加密、无需验证证书)</strong>,否则会被拒绝连不上:mysqlsh 加 <code>--ssl-mode=REQUIRED</code>;DBeaver 在「驱动属性」设 <code>sslMode=REQUIRED</code>(SSL 页不要勾"验证服务器证书");Workbench 的 SSL 页选 <code>Require</code>。</p>
+      </div>
+      <div class="form-sec">本地监听</div>
+      <div class="grid2">
+        <div class="field"><label>监听地址</label><input class="input mono" id="f_listenAddr" /></div>
+        <div class="field"><label>监听端口</label><input class="input mono" id="f_listenPort" type="number" min="1" max="65535" /></div>
+      </div>
+      <div class="form-sec">转发目标</div>
+      <div class="grid2">
+        <div class="field"><label>目标地址</label><input class="input mono" id="f_targetHost" /></div>
+        <div class="field"><label>目标端口</label><input class="input mono" id="f_targetPort" type="number" min="1" max="65535" /></div>
+      </div>
+      <div class="form-sec">出口代理</div>
+      <div class="field"><label>代理类型</label>
+        <select class="input" id="f_proxyType">
+          <option value="socks5">socks5</option>
+          <option value="http">http</option>
+          <option value="direct">direct(直连,不走代理)</option>
+        </select>
+      </div>
+      <div class="grid2">
+        <div class="field"><label>代理地址</label><input class="input mono" id="f_proxyHost" /></div>
+        <div class="field"><label>代理端口</label><input class="input mono" id="f_proxyPort" type="number" min="1" max="65535" /></div>
+      </div>
+      <div class="field-row">
+        <div><div class="field-title">随程序自动启动</div><p class="hint">托盘程序启动时自动运行本条转发</p></div>
+        <label class="switch"><input type="checkbox" id="f_autoStart" /><span class="track"></span></label>
+      </div>
+    </div>
+    <div class="dlg-foot">
+      <button class="btn" id="ruleCancel">取消</button>
+      <button class="btn primary" id="ruleSave">保存</button>
+    </div>
+  </dialog>
+
+  <!-- ===== 设置对话框 ===== -->
+  <dialog id="setDlg">
+    <h3 class="dlg-title">设置</h3>
+    <div class="dlg-body">
+      <div class="field">
+        <label>gost 可执行文件路径</label>
+        <input class="input mono" id="s_gostPath" placeholder="gost.exe 或完整路径" />
+        <p class="hint">留空则使用程序目录下的 gost.exe;还没有?到
+          <a href="https://github.com/go-gost/gost/releases" target="_blank" rel="noopener">github.com/go-gost/gost/releases</a>
+          下载 Windows 版解压即可</p>
+      </div>
+      <div class="field">
+        <label>gost.exe 完整性(SHA-256 指纹锁定)</label>
+        <div class="integrity-row">
+          <span class="integrity-state" id="s_integrityState">检查中…</span>
+          <button class="btn sm" id="s_trustGost" hidden>信任当前文件</button>
+        </div>
+        <p class="hint mono" id="s_integrityFp"></p>
+        <p class="hint">首次成功启动时自动锁定指纹;此后文件内容变化(替换/升级)会拒绝启动,请核实来源后在此信任</p>
+      </div>
+      <div class="field">
+        <label>Web 管理端口</label>
+        <input class="input mono" id="s_webPort" type="number" min="1" max="65535" />
+        <p class="hint">修改后需重启程序生效;开发(Debug)构建固定使用开发端口</p>
+      </div>
+      <div class="form-sec">存储</div>
+      <div class="field">
+        <label>规则文件路径</label>
+        <input class="input mono" id="s_rulesPath" placeholder="默认:程序目录 rules.json" />
+        <p class="hint">规则单独存放于此 JSON 文件,留空恢复默认;修改后当前规则会迁移到新位置(新位置已有文件时会拒绝,防覆盖),旧文件保留作备份</p>
+      </div>
+      <div class="field">
+        <label>日志目录</label>
+        <input class="input mono" id="s_logDir" placeholder="默认:程序目录 logs" />
+        <p class="hint">运行日志按天写入该目录下的 gost-yyyyMMdd.log,留空恢复默认;修改后新日志写入新目录,旧文件原样保留</p>
+      </div>
+      <div class="field">
+        <label>日志保留天数</label>
+        <input class="input mono" id="s_logDays" type="number" min="0" max="3650" />
+        <p class="hint">文件日期超过天数的日志自动删除;0 表示永久保留</p>
+      </div>
+      <div class="form-sec">其他</div>
+      <div class="field-row">
+        <div><div class="field-title">开机启动</div><p class="hint">写入当前用户注册表 Run 键,切换后立即生效</p></div>
+        <label class="switch"><input type="checkbox" id="s_autoLaunch" /><span class="track"></span></label>
+      </div>
+    </div>
+    <div class="dlg-foot">
+      <button class="btn" id="setCancel">关闭</button>
+      <button class="btn primary" id="setSave">保存</button>
+    </div>
+  </dialog>
+
+  <!-- ===== 确认对话框 ===== -->
+  <dialog id="cfmDlg">
+    <h3 class="dlg-title" id="cfmTitle">确认</h3>
+    <div class="dlg-body"><p id="cfmDesc"></p></div>
+    <div class="dlg-foot">
+      <button class="btn" id="cfmCancel">取消</button>
+      <button class="btn danger" id="cfmOk">确认删除</button>
+    </div>
+  </dialog>
+
+  <div id="toasts"></div>
+
+  <script>
+    "use strict";
+    /* ================= 工具函数 ================= */
+    const $ = (s) => document.querySelector(s);
+
+    async function api(path, opts) {
+      const resp = await fetch("/api" + path, opts);
+      let data = null;
+      try { data = await resp.json(); } catch (e) { /* 空响应体 / 非 JSON */ }
+      if (!resp.ok) {
+        // 归一化 HTTP 错误并抛出:业务错误带 message,模型绑定失败(ProblemDetails)带 title
+        const err = new Error((data && (data.message || data.title)) || ("HTTP " + resp.status));
+        err.status = resp.status;
+        throw err;
+      }
+      return data;
+    }
+    // 请求异常的展示文案:HTTP 错误显示后端给的 message,网络层失败统一提示
+    function errMsg(e) {
+      return e && e.status ? e.message : "请求失败:后端未响应";
+    }
+    function jsonBody(method, body) {
+      return { method: method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) };
+    }
+    function escapeHtml(s) {
+      return String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+    }
+
+    function toast(ok, msg) {
+      const t = document.createElement("div");
+      t.className = "toast " + (ok ? "ok" : "err");
+      t.innerHTML = `<svg class="ic"><use href="#${ok ? "i-check" : "i-x"}"/></svg><span></span>`;
+      t.querySelector("span").textContent = msg;
+      $("#toasts").appendChild(t);
+      setTimeout(() => { t.classList.add("out"); setTimeout(() => t.remove(), 260); }, 3800);
+    }
+
+    // 复制:优先 clipboard API;HTTP / 非安全上下文用 execCommand 兜底,避免静默失败
+    function copyText(text) {
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(text).then(() => toast(true, "已复制")).catch(() => fallbackCopy(text));
+      } else {
+        fallbackCopy(text);
+      }
+    }
+    function fallbackCopy(text) {
+      const ta = document.createElement("textarea");
+      ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0";
+      document.body.appendChild(ta); ta.focus(); ta.select();
+      try { document.execCommand("copy"); toast(true, "已复制"); }
+      catch (e) { toast(false, "复制失败,请手动选择"); }
+      document.body.removeChild(ta);
+    }
+
+    // Promise 化的确认对话框(替代原生 confirm,风格统一);okText 可定制确认按钮文案
+    function confirmDlg(title, desc, okText) {
+      return new Promise((resolve) => {
+        $("#cfmTitle").textContent = title;
+        $("#cfmDesc").textContent = desc;
+        $("#cfmOk").textContent = okText || "确认删除";
+        const dlg = $("#cfmDlg");
+        const done = (val) => { if (dlg.open) dlg.close(); resolve(val); };
+        $("#cfmOk").onclick = () => done(true);
+        $("#cfmCancel").onclick = () => done(false);
+        dlg.addEventListener("close", () => resolve(false), { once: true });
+        dlg.showModal();
+      });
+    }
+
+    /* ================= 主题 ================= */
+    function initTheme() {
+      const saved = localStorage.getItem("pf-theme");
+      const theme = saved || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+      document.documentElement.dataset.theme = theme;
+    }
+    $("#themeToggle").onclick = () => {
+      const next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+      document.documentElement.dataset.theme = next;
+      localStorage.setItem("pf-theme", next);
+    };
+    initTheme();
+
+    /* ================= 全局状态 ================= */
+    let rules = [];             // 当前规则列表(每项挂 _running 运行状态)
+    let cfg = { webPort: 0, gostPath: "", rulesPath: "", logDirectory: "", logRetentionDays: 7 };
+    let currentLogRule = null;  // 日志面板当前选中的规则 id
+    let logSeq = 0;             // 已见最大日志序号(增量拉取)
+    let logLines = [];          // 本地日志缓冲(用于复制/截断重绘)
+    let logFollow = true;       // 日志自动滚动
+    let offlineCount = 0;       // 状态轮询连续失败计数
+
+    /* ================= 渲染 ================= */
+    function ruleCardHtml(r) {
+      const running = !!r._running;
+      const isDirect = r.proxyType === "direct";
+      const proxyTag = r.proxyType === "socks5" ? "SOCKS5 代理" : "HTTP 代理";
+      const proxyPart = isDirect ? "" : `
+        <div class="node">
+          <div class="node-tag">${proxyTag}</div>
+          <div class="node-addr">${escapeHtml(r.proxyHost)}:${r.proxyPort}</div>
+          <div class="seg" data-seg="proxy"></div>
+        </div>
+        <div class="link"><span class="link-line"></span></div>`;
+      return `
+      <article class="card rule-card${running ? " running" : ""}" data-id="${escapeHtml(r.id)}">
+        <div class="rule-head">
+          <span class="dot"></span>
+          <h3 class="rule-name">${escapeHtml(r.name)}</h3>
+          ${r.mode === "mysql" ? '<span class="badge-mysql" title="MySQL TLS 中继(懒连接兼容)">MySQL TLS</span>' : ""}
+          ${r.autoStart ? '<span class="badge-auto" title="随程序启动自动运行">自动</span>' : ""}
+          <span class="rule-state">${running ? "运行中" : "已停止"}</span>
+          <label class="switch" title="启动 / 停止">
+            <input type="checkbox" data-action="toggle" ${running ? "checked" : ""} />
+            <span class="track"></span>
+          </label>
+        </div>
+        <div class="chain">
+          <div class="node">
+            <div class="node-tag">本地监听</div>
+            <div class="node-addr">${escapeHtml(r.listenAddress)}:${r.listenPort}</div>
+            <div class="seg" data-seg="listen"></div>
+          </div>
+          <div class="link"><span class="link-line"></span>${isDirect ? '<span class="link-label">直连</span>' : ""}</div>
+          ${proxyPart}
+          <div class="node">
+            <div class="node-tag">目标</div>
+            <div class="node-addr">${escapeHtml(r.targetHost)}:${r.targetPort}</div>
+            <div class="seg" data-seg="target"></div>
+          </div>
+        </div>
+        <div class="rule-foot">
+          <button class="btn sm" data-action="diag"><svg class="ic"><use href="#i-zap"/></svg>诊断链路</button>
+          <button class="btn sm" data-action="copy"><svg class="ic"><use href="#i-copy"/></svg>复制监听地址</button>
+          <span class="spacer"></span>
+          <button class="btn sm ghost" data-action="edit"><svg class="ic"><use href="#i-edit"/></svg>编辑</button>
+          <button class="btn sm ghost danger" data-action="del"><svg class="ic"><use href="#i-trash"/></svg>删除</button>
+        </div>
+      </article>`;
+    }
+
+    function renderRules(list) {
+      // 保留旧运行状态,避免重绘后闪烁
+      const oldRunning = {};
+      rules.forEach((r) => { oldRunning[r.id] = r._running; });
+      rules = list || [];
+      rules.forEach((r) => { r._running = !!oldRunning[r.id]; });
+
+      const box = $("#ruleList");
+      if (!rules.length) {
+        box.innerHTML = `
+          <div class="empty">
+            <svg class="ic"><use href="#i-swap"/></svg>
+            <p>还没有转发规则</p>
+            <button class="btn primary" onclick="document.getElementById('addRule').click()">
+              <svg class="ic"><use href="#i-plus"/></svg>新增第一条规则
+            </button>
+          </div>`;
+      } else {
+        box.innerHTML = rules.map(ruleCardHtml).join("");
+      }
+
+      // 重建日志规则下拉,尽量保留当前选择
+      const sel = $("#logRule");
+      sel.innerHTML = "";
+      rules.forEach((r) => {
+        const opt = document.createElement("option");
+        opt.value = r.id;
+        sel.appendChild(opt);
+      });
+      if (!rules.some((r) => r.id === currentLogRule)) {
+        currentLogRule = rules.length ? rules[0].id : null;
+        logSeq = 0; logLines = []; redrawLog();
+      }
+      if (currentLogRule) sel.value = currentLogRule;
+      applyStatusUI();
+    }
+
+    // 轻量刷新:只更新状态相关的 UI,不重建卡片(避免打断诊断结果展示)
+    function applyStatusUI() {
+      let runningCount = 0;
+      rules.forEach((r) => {
+        if (r._running) runningCount++;
+        const card = findCard(r.id);
+        if (!card) return;
+        card.classList.toggle("running", !!r._running);
+        const state = card.querySelector(".rule-state");
+        if (state) state.textContent = r._running ? "运行中" : "已停止";
+        const sw = card.querySelector('input[data-action="toggle"]');
+        if (sw && !sw.dataset.busy) sw.checked = !!r._running;
+      });
+      $("#ruleStat").innerHTML = `共 <b>${rules.length}</b> 条规则 · <b>${runningCount}</b> 运行中`;
+      // 日志下拉项带运行状态圆点
+      const sel = $("#logRule");
+      Array.from(sel.options).forEach((opt) => {
+        const r = rules.find((x) => x.id === opt.value);
+        if (r) opt.textContent = (r._running ? "● " : "○ ") + r.name;
+      });
+    }
+
+    function findCard(id) {
+      return document.querySelector(`.rule-card[data-id="${CSS.escape(id)}"]`);
+    }
+
+    function setOnline(ok) {
+      if (ok) { offlineCount = 0; }
+      else { offlineCount++; }
+      const badge = $("#healthBadge");
+      const off = offlineCount >= 2; // 连续两次失败才标离线,避免偶发抖动
+      badge.classList.toggle("off", off);
+      badge.textContent = off ? "连接断开" : "服务在线";
+    }
+
+    /* ================= 数据加载 ================= */
+    async function loadConfig() {
+      try {
+        const c = await api("/config");
+        cfg = {
+          webPort: c.webPort || 0,
+          gostPath: c.gostPath || "",
+          rulesPath: c.rulesPath || "",       // 后端返回解析后的生效绝对路径
+          logDirectory: c.logDirectory || "",
+          // 0 是合法值(永久保留),不能用 || 兜底
+          logRetentionDays: typeof c.logRetentionDays === "number" ? c.logRetentionDays : 7
+        };
+        renderRules(c.rules || []);
+        setOnline(true);
+      } catch (e) {
+        setOnline(false);
+      }
+    }
+
+    /* ================= 启停 ================= */
+    async function toggleRule(id, wantRun, sw) {
+      sw.dataset.busy = "1";
+      sw.disabled = true;
+      try {
+        const res = await api(`/rules/${encodeURIComponent(id)}/${wantRun ? "start" : "stop"}`, { method: "POST" });
+        if (!res || !res.ok) {
+          toast(false, (res && res.message) || "操作失败");
+        } else if (wantRun && !res.running) {
+          // 优先给出可定位的原因(gost 缺失 / 指纹不一致被拒),否则退回通用提示
+          if (!(await hintIntegrityIfBlocked())) toast(false, "启动失败,请查看该规则日志");
+        } else if (!wantRun && res.running) {
+          toast(false, "停止超时,gost 进程可能仍在运行,请查看日志");
+        } else {
+          toast(true, wantRun ? "已启动" : "已停止");
+        }
+      } catch (e) {
+        toast(false, errMsg(e));
+      } finally {
+        sw.disabled = false;
+        delete sw.dataset.busy;
+      }
+      await refreshStatus();
+      // gost 拉起后可能因端口占用等原因秒退,延迟再刷一次状态兜底
+      setTimeout(refreshStatus, 900);
+    }
+
+    // 全部启动/停止走后端批量端点:由后端遍历真实注册表,不依赖前端 _running 快照
+    // (快照在启动后 1-2 秒内可能过期,曾导致「全部启动后立刻全部停止」漏停/误报没有运行中的规则)
+    $("#startAll").onclick = async () => {
+      const btn = $("#startAll");
+      btn.disabled = true;
+      try {
+        const res = await api("/rules/start-all", { method: "POST" });
+        if (!res.total) { toast(false, "暂无规则"); return; }
+        if (res.running >= res.total) {
+          toast(true, `已启动全部 ${res.total} 条规则`);
+        } else {
+          toast(false, `已启动 ${res.running}/${res.total} 条规则,失败原因见对应规则日志`);
+          hintIntegrityIfBlocked();
+        }
+      } catch (e) {
+        toast(false, errMsg(e));
+      } finally {
+        btn.disabled = false;
+      }
+      await refreshStatus();
+      // gost 拉起后可能因端口占用等原因秒退,延迟再刷一次状态兜底
+      setTimeout(refreshStatus, 900);
+    };
+    $("#stopAll").onclick = async () => {
+      const btn = $("#stopAll");
+      btn.disabled = true;
+      try {
+        const res = await api("/rules/stop-all", { method: "POST" });
+        if (!res.total) { toast(false, "暂无规则"); return; }
+        if (res.running > 0) {
+          toast(false, `仍有 ${res.running} 条规则未能停止,请查看日志`);
+        } else {
+          toast(true, "已停止全部规则");
+        }
+      } catch (e) {
+        toast(false, errMsg(e));
+      } finally {
+        btn.disabled = false;
+      }
+      await refreshStatus();
+    };
+
+    /* ================= 链路分段诊断 =================
+       依次测三段并把结果标注在链路图上,可区分:
+       本地监听未起 / 代理不可达 / 代理可达但到目标失败 / 全链路通 */
+    function setSeg(id, seg, state, text, title) {
+      const card = findCard(id);
+      if (!card) return;
+      const el = card.querySelector(`.seg[data-seg="${seg}"]`);
+      if (!el) return;
+      el.className = "seg " + state;
+      el.title = title || text || "";
+      if (state === "testing") {
+        el.innerHTML = '<span class="spin"></span><span class="seg-txt">测试中…</span>';
+      } else {
+        const mark = state === "ok" ? "✓ " : state === "fail" ? "✕ " : "";
+        el.innerHTML = '<span class="seg-txt"></span>';
+        el.querySelector(".seg-txt").textContent = mark + (text || "");
+      }
+    }
+
+    async function diagnose(id, btn) {
+      const r = rules.find((x) => x.id === id);
+      if (!r) return;
+      const old = btn.innerHTML;
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spin"></span>诊断中…';
+      try {
+        // 1) 本地监听端口(仅规则运行中才有意义)
+        if (r._running) {
+          setSeg(id, "listen", "testing");
+          const res = await api("/test/listener", jsonBody("POST", { host: r.listenAddress, port: r.listenPort, timeoutMs: 3000 }));
+          setSeg(id, "listen", res.success ? "ok" : "fail", res.success ? `监听正常 ${res.elapsedMs}ms` : "监听异常", res.message);
+        } else {
+          setSeg(id, "listen", "skip", "未启动,跳过");
+        }
+
+        // 2) 代理端口 TCP 可达(direct 规则无此段)
+        let proxyOk = null;
+        if (r.proxyType !== "direct") {
+          setSeg(id, "proxy", "testing");
+          const res = await api("/test/proxy", jsonBody("POST", { host: r.proxyHost, port: r.proxyPort, timeoutMs: 5000 }));
+          proxyOk = !!res.success;
+          setSeg(id, "proxy", res.success ? "ok" : "fail", res.success ? `代理可达 ${res.elapsedMs}ms` : "代理不可达", res.message);
+        }
+
+        // 3) 端到端:socks5 走代理测目标;direct 直接 TCP 测目标;http 后端暂不支持
+        if (r.proxyType === "socks5") {
+          if (proxyOk === false) {
+            setSeg(id, "target", "skip", "代理不可达,未测", "先确认代理软件已运行且配置的代理端口正在监听");
+          } else {
+            setSeg(id, "target", "testing");
+            const res = await api("/test/target", jsonBody("POST", {
+              proxyHost: r.proxyHost, proxyPort: r.proxyPort,
+              targetHost: r.targetHost, targetPort: r.targetPort, timeoutMs: 8000
+            }));
+            setSeg(id, "target", res.success ? "ok" : "fail", res.success ? `链路通 ${res.elapsedMs}ms` : "到目标失败", res.message);
+          }
+        } else if (r.proxyType === "direct") {
+          setSeg(id, "target", "testing");
+          const res = await api("/test/proxy", jsonBody("POST", { host: r.targetHost, port: r.targetPort, timeoutMs: 8000 }));
+          setSeg(id, "target", res.success ? "ok" : "fail", res.success ? `直连可达 ${res.elapsedMs}ms` : "直连失败", res.message);
+        } else {
+          setSeg(id, "target", "skip", "http 代理暂不支持端到端测试");
+        }
+      } catch (e) {
+        toast(false, errMsg(e));
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = old;
+      }
+    }
+
+    /* ================= 规则卡片事件(委托) ================= */
+    $("#ruleList").addEventListener("click", async (e) => {
+      const btn = e.target.closest("button[data-action]");
+      if (!btn) return;
+      const card = btn.closest(".rule-card");
+      const id = card.dataset.id;
+      const r = rules.find((x) => x.id === id);
+      if (!r) return;
+      const action = btn.dataset.action;
+
+      if (action === "diag") {
+        diagnose(id, btn);
+      } else if (action === "copy") {
+        copyText(`${r.listenAddress}:${r.listenPort}`);
+      } else if (action === "edit") {
+        if (r._running) { toast(false, "规则运行中,请先停止再编辑"); return; }
+        openRuleDlg(r);
+      } else if (action === "del") {
+        const yes = await confirmDlg(`删除规则「${r.name}」?`, "删除会先停止对应的 gost 进程,规则不可恢复。");
+        if (!yes) return;
+        try {
+          const res = await api(`/rules/${encodeURIComponent(id)}`, { method: "DELETE" });
+          if (res && res.ok) { toast(true, "已删除"); loadConfig(); }
+          else { toast(false, (res && res.message) || "删除失败"); }
+        } catch (err) { toast(false, errMsg(err)); }
+      }
+    });
+    $("#ruleList").addEventListener("change", (e) => {
+      const sw = e.target.closest('input[data-action="toggle"]');
+      if (!sw) return;
+      const id = sw.closest(".rule-card").dataset.id;
+      toggleRule(id, sw.checked, sw);
+    });
+
+    /* ================= 新增 / 编辑对话框 ================= */
+    const ruleDlg = $("#ruleDlg");
+    $("#addRule").onclick = () => openRuleDlg(null);
+    $("#ruleCancel").onclick = () => ruleDlg.close();
+
+    function openRuleDlg(rule) {
+      $("#ruleDlgTitle").textContent = rule ? "编辑规则" : "新增规则";
+      $("#f_id").value = rule ? rule.id : "";
+      $("#f_name").value = rule ? rule.name : "";
+      $("#f_listenAddr").value = rule ? rule.listenAddress : "";
+      $("#f_listenPort").value = rule ? rule.listenPort : "";
+      $("#f_targetHost").value = rule ? rule.targetHost : "";
+      $("#f_targetPort").value = rule ? rule.targetPort : "";
+      $("#f_proxyType").value = rule ? rule.proxyType : "socks5";
+      $("#f_proxyHost").value = rule ? rule.proxyHost : "";
+      $("#f_proxyPort").value = rule ? rule.proxyPort : "";
+      $("#f_autoStart").checked = rule ? !!rule.autoStart : false;
+      $("#f_mode").value = rule ? (rule.mode || "gost") : "gost";
+      syncModeFields();
+      syncProxyFields();
+      ruleDlg.showModal();
+    }
+
+    // direct 类型时禁用代理地址/端口输入
+    function syncProxyFields() {
+      const direct = $("#f_proxyType").value === "direct";
+      $("#f_proxyHost").disabled = direct;
+      $("#f_proxyPort").disabled = direct;
+    }
+    $("#f_proxyType").onchange = syncProxyFields;
+
+    // MySQL TLS 中继模式:显示说明;出口仅支持 direct/socks5,禁用 http 选项(若正选中则切回 socks5)
+    function syncModeFields() {
+      const isMysql = $("#f_mode").value === "mysql";
+      $("#f_modeHint").hidden = !isMysql;
+      const httpOpt = $("#f_proxyType").querySelector('option[value="http"]');
+      if (httpOpt) {
+        httpOpt.disabled = isMysql;
+        if (isMysql && $("#f_proxyType").value === "http") {
+          $("#f_proxyType").value = "socks5";
+          syncProxyFields();
+        }
+      }
+    }
+    $("#f_mode").onchange = syncModeFields;
+
+    function validPort(v) {
+      const n = parseInt(v, 10);
+      return Number.isInteger(n) && n >= 1 && n <= 65535 ? n : null;
+    }
+
+    // 监听冲突检测:与后端 ForwardRuleService.FindListenConflict 同一语义——
+    // 同端口且地址互相覆盖(空 / 0.0.0.0 / :: 表示绑所有网卡,与任何地址冲突)
+    function isWildcardAddr(a) {
+      const s = (a || "").trim();
+      return !s || s === "0.0.0.0" || s === "::" || s === "[::]";
+    }
+    function findListenConflict(payload, excludeId) {
+      return rules.find((r) =>
+        r.id !== excludeId &&
+        r.listenPort === payload.listenPort &&
+        (isWildcardAddr(r.listenAddress) || isWildcardAddr(payload.listenAddress) ||
+         (r.listenAddress || "").trim().toLowerCase() === payload.listenAddress.trim().toLowerCase())
+      ) || null;
+    }
+
+    $("#ruleSave").onclick = async () => {
+      const id = $("#f_id").value;
+      const proxyType = $("#f_proxyType").value;
+      const mode = $("#f_mode").value;
+      const payload = {
+        name: $("#f_name").value.trim(),
+        listenAddress: $("#f_listenAddr").value.trim() || "127.0.0.1",
+        listenPort: validPort($("#f_listenPort").value),
+        targetHost: $("#f_targetHost").value.trim(),
+        targetPort: validPort($("#f_targetPort").value),
+        proxyType: proxyType,
+        proxyHost: $("#f_proxyHost").value.trim(),
+        proxyPort: validPort($("#f_proxyPort").value) || 0,
+        autoStart: $("#f_autoStart").checked,
+        mode: mode
+      };
+      if (!payload.name) { toast(false, "请填写规则名称"); return; }
+      if (!payload.listenPort) { toast(false, "监听端口需在 1-65535 之间"); return; }
+      if (!payload.targetHost) { toast(false, "请填写目标地址"); return; }
+      if (!payload.targetPort) { toast(false, "目标端口需在 1-65535 之间"); return; }
+      if (proxyType !== "direct" && (!payload.proxyHost || !validPort($("#f_proxyPort").value))) {
+        toast(false, "请填写代理地址与端口"); return;
+      }
+      if (mode === "mysql" && proxyType !== "direct" && proxyType !== "socks5") {
+        toast(false, "MySQL TLS 中继模式的出口仅支持 直连 或 socks5"); return;
+      }
+      // 本地先查监听冲突,即时反馈;后端在锁内还会原子复查兜底(返回 409)
+      const dup = findListenConflict(payload, id || null);
+      if (dup) {
+        toast(false, `监听地址与规则「${dup.name}」冲突(${(dup.listenAddress || "0.0.0.0")}:${dup.listenPort})`);
+        return;
+      }
+      try {
+        const res = await api(id ? `/rules/${encodeURIComponent(id)}` : "/rules", jsonBody(id ? "PUT" : "POST", payload));
+        if (!res || !res.ok) { toast(false, (res && res.message) || "保存失败"); return; }
+        ruleDlg.close();
+        toast(true, "已保存");
+        loadConfig();
+      } catch (e) {
+        toast(false, errMsg(e)); // 409 冲突/运行中、400 校验失败会带后端 message
+      }
+    };
+
+    // 对话框内按 Enter 快捷保存
+    ruleDlg.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && e.target.tagName !== "SELECT") { e.preventDefault(); $("#ruleSave").click(); }
+    });
+
+    /* ================= gost.exe 完整性(指纹锁定) ================= */
+    // 拉取完整性状态并渲染到设置对话框:未锁定 / 已锁定一致 / 不一致(可信任) / 文件缺失或不可读
+    async function loadIntegrity() {
+      const state = $("#s_integrityState"), fp = $("#s_integrityFp"), btn = $("#s_trustGost");
+      state.textContent = "检查中…"; state.className = "integrity-state";
+      fp.textContent = ""; btn.hidden = true;
+      try {
+        const g = await api("/gost/integrity");
+        if (!g.fileExists) {
+          state.textContent = "未找到 gost.exe"; state.classList.add("err");
+          fp.textContent = g.gostPath || "";
+        } else if (!g.currentSha256) {
+          state.textContent = "文件存在但无法读取"; state.classList.add("err");
+          fp.textContent = g.gostPath || "";
+        } else if (!g.pinnedSha256) {
+          state.textContent = "未锁定 · 首次启动规则时自动锁定";
+          fp.textContent = "当前 SHA-256:" + g.currentSha256;
+          btn.hidden = false; btn.textContent = "立即锁定当前文件";
+        } else if (g.trusted) {
+          state.textContent = "已锁定,与当前文件一致"; state.classList.add("ok");
+          fp.textContent = "SHA-256:" + g.pinnedSha256;
+        } else {
+          state.textContent = "与锁定指纹不一致!文件被替换或已升级"; state.classList.add("err");
+          fp.textContent = "锁定:" + g.pinnedSha256 + "\n当前:" + g.currentSha256;
+          btn.hidden = false; btn.textContent = "信任当前文件";
+        }
+      } catch (e) {
+        state.textContent = "状态获取失败"; state.classList.add("err");
+      }
+    }
+
+    $("#s_trustGost").onclick = async () => {
+      const yes = await confirmDlg("信任当前 gost.exe?", "将把锁定指纹更新为当前文件的 SHA-256。请确认该文件来自官方渠道(github.com/go-gost/gost)且未被篡改。", "确认信任");
+      if (!yes) return;
+      try {
+        const res = await api("/gost/trust", { method: "POST" });
+        if (res.ok) toast(true, "已信任并锁定当前 gost.exe");
+        else toast(false, res.message || "操作失败");
+      } catch (e) { toast(false, errMsg(e)); }
+      loadIntegrity();
+    };
+
+    // 启动失败后的归因:若是文件缺失或指纹不一致,给出明确提示(返回 true 表示已提示具体原因)
+    async function hintIntegrityIfBlocked() {
+      try {
+        const g = await api("/gost/integrity");
+        if (!g.fileExists) {
+          toast(false, "未找到 gost.exe:" + g.gostPath);
+          return true;
+        }
+        if (g.pinnedSha256 && g.currentSha256 && !g.trusted) {
+          toast(false, "gost.exe 与锁定指纹不一致,已拒绝启动;核实来源后可在「设置」中信任当前文件");
+          return true;
+        }
+      } catch (e) { /* 拉取失败时退回调用方的通用提示 */ }
+      return false;
+    }
+
+    /* ================= 设置对话框 ================= */
+    const setDlg = $("#setDlg");
+    $("#openSettings").onclick = async () => {
+      $("#s_gostPath").value = cfg.gostPath || "";
+      $("#s_webPort").value = cfg.webPort || "";
+      $("#s_rulesPath").value = cfg.rulesPath || "";
+      $("#s_logDir").value = cfg.logDirectory || "";
+      $("#s_logDays").value = cfg.logRetentionDays;
+      loadIntegrity(); // 并行拉取,不阻塞对话框弹出
+      try {
+        const s = await api("/startup");
+        $("#s_autoLaunch").checked = !!s.enabled;
+      } catch (e) { /* 拉取失败保持当前显示 */ }
+      setDlg.showModal();
+    };
+    $("#setCancel").onclick = () => setDlg.close();
+
+    $("#setSave").onclick = async () => {
+      const gostPath = $("#s_gostPath").value.trim();
+      const portVal = validPort($("#s_webPort").value);
+      const portChanged = portVal !== null && portVal !== cfg.webPort;
+      const rulesPath = $("#s_rulesPath").value.trim();
+      const logDirectory = $("#s_logDir").value.trim();
+      const daysRaw = $("#s_logDays").value.trim();
+      const days = daysRaw === "" ? null : Number(daysRaw);
+      if (days !== null && (!Number.isInteger(days) || days < 0 || days > 3650)) {
+        toast(false, "日志保留天数需为 0-3650 的整数(0 表示永久保留)");
+        return;
+      }
+      // 存储路径只在用户改动时提交(null = 不修改):输入框回显的是解析后的绝对路径,
+      // 原样提交会把「跟随程序目录」的默认配置固化成绝对路径;清空提交空串则恢复默认
+      const rulesPathChanged = rulesPath !== cfg.rulesPath;
+      const logDirChanged = logDirectory !== cfg.logDirectory;
+      const daysChanged = days !== null && days !== cfg.logRetentionDays;
+      try {
+        const res = await api("/config", jsonBody("PUT", {
+          gostPath: gostPath,
+          webPort: portChanged ? portVal : 0,
+          rulesPath: rulesPathChanged ? rulesPath : null,
+          logDirectory: logDirChanged ? logDirectory : null,
+          logRetentionDays: daysChanged ? days : null
+        }));
+        if (res.ok) {
+          cfg.gostPath = gostPath;
+          if (portChanged) { cfg.webPort = portVal; toast(true, "已保存,Web 端口修改需重启程序生效"); }
+          else if (rulesPathChanged) { toast(true, "已保存,规则文件已迁移到新位置"); }
+          else { toast(true, "配置已保存"); }
+          setDlg.close();
+          // 重拉配置:拿到解析后的生效路径(如清空恢复默认后的实际位置)
+          loadConfig();
+        } else {
+          toast(false, res.message || "保存失败");
+        }
+      } catch (e) {
+        toast(false, errMsg(e));
+      }
+    };
+
+    // 开机启动:切换即保存,失败回弹
+    $("#s_autoLaunch").onchange = async (e) => {
+      const enabled = e.target.checked;
+      try {
+        const res = await api("/startup", jsonBody("PUT", { enabled: enabled }));
+        if (res.ok) { toast(true, enabled ? "已开启开机启动" : "已关闭开机启动"); }
+        else { toast(false, res.message || "设置开机启动失败"); e.target.checked = !enabled; }
+      } catch (err) {
+        toast(false, errMsg(err));
+        e.target.checked = !enabled;
+      }
+    };
+
+    /* ================= 状态轮询 ================= */
+    let statusEpoch = 0; // 并发守卫:定时轮询与手动刷新并发时,丢弃过期一轮的结果,防旧响应覆盖新状态
+    async function refreshStatus() {
+      const epoch = ++statusEpoch;
+      try {
+        if (!rules.length) {
+          await api("/health"); // 无规则时也探测在线状态
+          if (epoch !== statusEpoch) return;
+          setOnline(true);
+        } else {
+          // allSettled:个别规则 404(如刚在别的标签页被删)不影响其余状态与在线判定
+          const results = await Promise.allSettled(rules.map((r) => api(`/rules/${encodeURIComponent(r.id)}/status`)));
+          if (epoch !== statusEpoch) return;
+          let anyResponse = false;
+          let staleRule = false;
+          results.forEach((p) => {
+            if (p.status === "fulfilled") {
+              anyResponse = true;
+              const r = rules.find((x) => x.id === p.value.id);
+              if (r) r._running = !!p.value.running;
+            } else if (p.reason && p.reason.status) {
+              anyResponse = true; // 后端有响应(HTTP 错误),服务本身在线
+              if (p.reason.status === 404) staleRule = true; // 规则已在别处被删
+            }
+          });
+          setOnline(anyResponse);
+          if (staleRule) loadConfig(); // 重拉列表,移除残留卡片
+        }
+      } catch (e) {
+        if (epoch !== statusEpoch) return;
+        setOnline(false);
+      }
+      applyStatusUI();
+    }
+
+    /* ================= 日志(增量拉取 + 自动滚动) ================= */
+    const logView = $("#logView");
+
+    $("#logRule").onchange = (e) => {
+      currentLogRule = e.target.value;
+      logSeq = 0; logLines = [];
+      redrawLog();
+    };
+    $("#clearLog").onclick = () => { logLines = []; redrawLog(); };
+    $("#copyLog").onclick = () => {
+      if (!logLines.length) { toast(false, "暂无日志可复制"); return; }
+      copyText(logLines.map((l) => `${l.time} ${l.text}`).join("\n"));
+    };
+    $("#logFollow").onchange = (e) => { logFollow = e.target.checked; if (logFollow) logView.scrollTop = logView.scrollHeight; };
+
+    // 用户上滚暂停自动滚动,滚回底部自动恢复
+    logView.addEventListener("scroll", () => {
+      const nearBottom = logView.scrollHeight - logView.scrollTop - logView.clientHeight < 40;
+      if (logFollow && !nearBottom) { logFollow = false; $("#logFollow").checked = false; }
+      else if (!logFollow && nearBottom) { logFollow = true; $("#logFollow").checked = true; }
+    });
+
+    function logLineEl(l) {
+      const div = document.createElement("div");
+      div.className = "log-line";
+      const t = document.createElement("span");
+      t.className = "log-time"; t.textContent = l.time;
+      const x = document.createElement("span");
+      x.className = "log-text"; x.textContent = l.text;
+      div.append(t, x);
+      return div;
+    }
+    function redrawLog() {
+      logView.innerHTML = "";
+      const frag = document.createDocumentFragment();
+      logLines.forEach((l) => frag.appendChild(logLineEl(l)));
+      logView.appendChild(frag);
+      $("#logCount").textContent = logLines.length + " 行";
+      if (logFollow) logView.scrollTop = logView.scrollHeight;
+    }
+
+    async function pollLogs() {
+      if (!currentLogRule) return;
+      try {
+        const entries = await api(`/rules/${encodeURIComponent(currentLogRule)}/logs?afterSeq=${logSeq}`);
+        if (!Array.isArray(entries) || !entries.length) return;
+        entries.forEach((en) => {
+          logLines.push({ time: en.time, text: en.text });
+          logSeq = Math.max(logSeq, en.seq);
+        });
+        if (logLines.length > 1500) {
+          logLines = logLines.slice(-1000); // 本地缓冲截断,防止长时间运行 DOM 膨胀
+          redrawLog();
+        } else {
+          const frag = document.createDocumentFragment();
+          entries.forEach((en) => frag.appendChild(logLineEl({ time: en.time, text: en.text })));
+          logView.appendChild(frag);
+          $("#logCount").textContent = logLines.length + " 行";
+          if (logFollow) logView.scrollTop = logView.scrollHeight;
+        }
+      } catch (e) { /* 单次失败忽略,由状态轮询负责在线标记 */ }
+    }
+
+    /* ================= 启动 ================= */
+    // 版本号:启动时取一次即可(进程不重启不会变),失败静默不影响其余功能
+    async function loadVersion() {
+      try {
+        const h = await api("/health");
+        if (h.version) $("#appVer").textContent = "v" + h.version;
+      } catch (e) { /* 静默:在线状态由轮询负责 */ }
+    }
+    loadVersion();
+    loadConfig().then(refreshStatus);
+    setInterval(refreshStatus, 2000);
+    setInterval(pollLogs, 1500);
+  </script>
+</body>
+</html>

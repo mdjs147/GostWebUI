@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<assembly manifestVersion="1.0" xmlns="urn:schemas-microsoft-com:asm.v1">
+  <assemblyIdentity version="2.0.0.0" name="GostWebUI.app" />
+
+  <trustInfo xmlns="urn:schemas-microsoft-com:asm.v2">
+    <security>
+      <requestedPrivileges xmlns="urn:schemas-microsoft-com:asm.v3">
+        <requestedExecutionLevel level="asInvoker" uiAccess="false" />
+      </requestedPrivileges>
+    </security>
+  </trustInfo>
+
+  <!-- 高 DPI 感知不在 manifest 里声明:与 Program.Main 的 Application.SetHighDpiMode(PerMonitorV2)
+       二选一即可,两处同时声明会触发 WFAC010 且 manifest 会盖掉 API 调用 -->
+
+</assembly>
