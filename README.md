@@ -45,8 +45,8 @@ dotnet run
 - [贡献指南](CONTRIBUTING.md)
 - [安全政策](SECURITY.md)
 
-## 许可证状态
+## 许可证
 
-本项目自身的开源许可证尚未确定，仓库目前没有 `LICENSE` 文件。在许可证被明确添加前，公开可见不等于获得复制、修改或再分发本项目代码的许可。
+GostWebUI 采用 [MIT License](LICENSE)，版权归 `mdjs147` 所有。
 
 GOST、.NET 及其他第三方项目分别适用其各自许可证；第三方许可证不会自动成为 GostWebUI 的项目许可证。

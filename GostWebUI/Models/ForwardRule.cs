@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace PortForwarder.Models
+namespace GostWebUI.Models
 {
     // 一条端口转发规则。Id 用于 REST API 定位;其余字段与前端表单一一对应。
     public class ForwardRule
@@ -19,7 +19,7 @@ namespace PortForwarder.Models
         // 转发模式:"gost"(默认)= 拉起 gost 子进程做通用 TCP 转发;
         // "mysql" = 进程内 MySQL TLS 中继,以 SSLRequest 分段补全兼容「会对首包做嗅探/懒连接」的中转,
         // server-first 的 MySQL(这类目标用普通 gost 转发会卡在初始握手包超时)。详见 Core/MySqlRelayManager。
-        // 旧 rules.json 无此字段时,反序列化保持构造函数默认值 "gost",无需迁移。
+        // 反序列化时缺少此字段则保持构造函数默认值 "gost"。
         public string Mode { get; set; }
 
         public ForwardRule()

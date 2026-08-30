@@ -4,9 +4,9 @@ using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using PortForwarder.Models;
+using GostWebUI.Models;
 
-namespace PortForwarder.Core
+namespace GostWebUI.Core
 {
     // 连接测试工具,提供三类测试:
     //   1) TestTcpAsync            —— 目标 host:port 的裸 TCP 可达性(用于测本地监听端口 / 代理端口)

@@ -1,4 +1,4 @@
-namespace PortForwarder.Models
+namespace GostWebUI.Models
 {
     // 一条日志(带自增序号,便于前端增量拉取)
     public class LogEntry

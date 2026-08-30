@@ -1,7 +1,7 @@
 using System;
 using Microsoft.Win32;
 
-namespace PortForwarder.Services
+namespace GostWebUI.Services
 {
     // 开机启动管理:读写 HKCU\Software\Microsoft\Windows\CurrentVersion\Run 注册表值。
     // 作用于当前用户,无需管理员权限;值为当前 exe 完整路径(带引号)。
@@ -12,11 +12,8 @@ namespace PortForwarder.Services
 #if DEBUG
         // 开发构建用独立值名:避免调试时把 bin 下的临时 exe 覆盖掉正式版的开机启动注册
         private const string ValueName = "GostWebUI-Dev";
-        // 项目由 MyPortForwarder 更名而来,旧值名仅用于一次性迁移
-        private const string LegacyValueName = "MyPortForwarder-Dev";
 #else
         private const string ValueName = "GostWebUI";
-        private const string LegacyValueName = "MyPortForwarder";
 #endif
 
         public bool IsEnabled()
@@ -54,37 +51,6 @@ namespace PortForwarder.Services
                 {
                     key.DeleteValue(ValueName, false);
                 }
-            }
-        }
-
-        // 启动时调用:把旧程序名(MyPortForwarder)时期的开机启动注册值迁移到新值名,
-        // 继承启用状态并指向当前 exe;失败静默(不影响程序启动)。
-        public void MigrateLegacyValueName()
-        {
-            try
-            {
-                using (RegistryKey key = Registry.CurrentUser.OpenSubKey(RunKeyPath, true))
-                {
-                    if (key == null)
-                    {
-                        return;
-                    }
-                    object legacy = key.GetValue(LegacyValueName);
-                    if (legacy == null)
-                    {
-                        return;
-                    }
-                    if (key.GetValue(ValueName) == null)
-                    {
-                        // 旧值路径指向旧 exe,直接用当前 exe 路径重写到新值名
-                        Enable();
-                    }
-                    key.DeleteValue(LegacyValueName, false);
-                }
-            }
-            catch (Exception)
-            {
-                // 尽力而为:注册表不可写时不影响程序启动
             }
         }
 

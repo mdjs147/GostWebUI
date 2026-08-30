@@ -5,9 +5,9 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
-using PortForwarder.Models;
+using GostWebUI.Models;
 
-namespace PortForwarder.Core
+namespace GostWebUI.Core
 {
     // 进程内 MySQL TLS 中继(Mode="mysql"):兼容「对首包做嗅探/懒连接、且把首字节透传给后端」的中转,
     // 转发 server-first 的 MySQL(这类目标用普通 gost 转发会卡在初始握手包超时)。

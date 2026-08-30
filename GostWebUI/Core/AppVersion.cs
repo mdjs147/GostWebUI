@@ -1,7 +1,7 @@
 using System;
 using System.Reflection;
 
-namespace PortForwarder.Core
+namespace GostWebUI.Core
 {
     // 应用版本号:单一来源是 csproj 的 <Version>,运行时从程序集特性读取。
     // 托盘悬停提示、网页顶栏与 GET /api/health 共用同一值,不在代码里另写死版本字符串。

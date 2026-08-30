@@ -1,7 +1,7 @@
 using System;
-using PortForwarder.Models;
+using GostWebUI.Models;
 
-namespace PortForwarder.Core
+namespace GostWebUI.Core
 {
     // 一条转发规则的运行时管理器抽象。两种实现共用此契约,由 ForwardRuleService 统一按 Id
     // 注册、启停、订阅日志:

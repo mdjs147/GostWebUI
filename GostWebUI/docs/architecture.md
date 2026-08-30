@@ -40,8 +40,8 @@
 ## 启动时序(Program.Main)
 
 1. 命名 `Mutex`(`Local\GostWebUI-SingleInstance`,Debug 构建带 `-Dev` 后缀)判断单实例;已有实例则打开配置页后退出,不重复起托盘。
-2. `ConfigService.Load()` 读 `config.json`(旧 `portforwarder.config.json` 自动迁移;旧默认端口 18011 自动迁移到当前默认端口),再读 `RulesPath` 指向的规则文件(默认 exe 同目录 `rules.json`);旧版内嵌在 config.json 里的 `Rules` 一次性并入规则文件(按 Id 去重)后从 config.json 移除。首次运行(config.json 与旧名文件均不存在)置 `IsFirstRun` 并立即固化一次 config.json,使初次引导只在真正的第一次启动触发。
-3. 手动 `new` 组合服务:`ConfigService` → `LogFileService(日志目录, 保留天数)`(构造时清理一次过期日志)→ `ForwardRuleService(configService, logFile)` → `Socks5Tester` → `StartupService`(先迁移更名前的旧注册值名,再刷新注册路径,exe 移动后自动修正)。
+2. `ConfigService.Load()` 读 `config.json`,再读 `RulesPath` 指向的规则文件(默认 exe 同目录 `rules.json`)。首次运行(`config.json` 不存在)时置 `IsFirstRun` 并立即固化一次配置,使初次引导只在真正的第一次启动触发。
+3. 手动 `new` 组合服务:`ConfigService` → `LogFileService(日志目录, 保留天数)`(构造时清理一次过期日志)→ `ForwardRuleService(configService, logFile)` → `Socks5Tester` → `StartupService`(已启用开机启动时刷新注册路径,exe 移动后自动修正)。
 4. `new ApiServer(...).Start()`:构建 `WebApplication`,`UseUrls("http://127.0.0.1:{WebPort}")`,挂静态文件(`StaticFiles.Configure`)与 REST 路由,`StartAsync()` **非阻塞**启动 Kestrel。
 5. `ForwardRuleService.StartAutoStartRules()` 拉起勾选自动运行的规则。
 6. `Application.Run(new TrayService(..., configService.IsFirstRun))` 进入托盘消息循环(阻塞主线程直到「退出」)。**首次运行**(`config.json` 不存在)时,`TrayService` 构造中自动打开配置页并弹托盘气泡,引导用户去设置。
@@ -51,21 +51,21 @@
 
 | 组件 | 命名空间 | 职责 |
 | --- | --- | --- |
-| `Program` | PortForwarder | Mutex 单实例、手动组合服务、生命周期收尾 |
-| `TrayService` | PortForwarder.Services | 托盘图标、菜单、打开浏览器、退出;首次运行自动打开配置页 + 气泡引导 |
-| `ApiServer` | PortForwarder.Web | 构建/启动内嵌 Web,REST 路由与具名实例方法 handler |
-| `StaticFiles` | PortForwarder.Web | wwwroot 静态托管 |
-| `AppVersion` | PortForwarder.Core | 应用版本号读取：单一来源 csproj `<Version>`，托盘/网页/health 共用 |
-| `ForwardRuleService` | PortForwarder.Core | 多规则进程注册表 + 日志环形缓冲 + gost 指纹锁定策略(TOFU/信任)(API 服务层);按 Mode 分派 gost / mysql 两种管理器 |
-| `IForwardManager` | PortForwarder.Core | 转发运行时管理器抽象(Start/Stop/IsRunning/日志事件),GostProcessManager 与 MySqlRelayManager 共用 |
-| `GostProcessManager` | PortForwarder.Core | 单条规则的 gost 子进程启停与日志捕获;路径绝对化 + 启动前 SHA-256 校验 |
-| `MySqlRelayManager` | PortForwarder.Core | 进程内 MySQL TLS 中继(Mode="mysql"):SSLRequest 分段补全兼容懒连接,TLS 端到端透传,不拉 gost、不接触凭据 |
-| `ChildProcessJob` | PortForwarder.Core | kill-on-close Job Object:主进程死亡时内核兜底终止 gost 子进程 |
-| `Socks5Tester` | PortForwarder.Core | TCP / SOCKS5 端到端连接测试 |
-| `ConfigService` | PortForwarder.Services | config.json 与规则文件(rules.json)读写,持有当前配置与规则列表;规则文件路径迁移(防覆盖) |
-| `LogFileService` | PortForwarder.Services | 日志文件归档:按天滚动写 gost-yyyyMMdd.log,超过保留天数自动清理;自持锁,IO 失败静默重试 |
-| `StartupService` | PortForwarder.Services | 开机启动:HKCU Run 注册表读写(Debug 构建用独立值名) |
-| `ForwardRule` / `AppConfig` / `ConnectionTestResult` / `LogEntry` / `GostIntegrityInfo` | PortForwarder.Models | 数据模型与 DTO |
+| `Program` | GostWebUI | Mutex 单实例、手动组合服务、生命周期收尾 |
+| `TrayService` | GostWebUI.Services | 托盘图标、菜单、打开浏览器、退出;首次运行自动打开配置页 + 气泡引导 |
+| `ApiServer` | GostWebUI.Web | 构建/启动内嵌 Web,REST 路由与具名实例方法 handler |
+| `StaticFiles` | GostWebUI.Web | wwwroot 静态托管 |
+| `AppVersion` | GostWebUI.Core | 应用版本号读取：单一来源 csproj `<Version>`，托盘/网页/health 共用 |
+| `ForwardRuleService` | GostWebUI.Core | 多规则进程注册表 + 日志环形缓冲 + gost 指纹锁定策略(TOFU/信任)(API 服务层);按 Mode 分派 gost / mysql 两种管理器 |
+| `IForwardManager` | GostWebUI.Core | 转发运行时管理器抽象(Start/Stop/IsRunning/日志事件),GostProcessManager 与 MySqlRelayManager 共用 |
+| `GostProcessManager` | GostWebUI.Core | 单条规则的 gost 子进程启停与日志捕获;路径绝对化 + 启动前 SHA-256 校验 |
+| `MySqlRelayManager` | GostWebUI.Core | 进程内 MySQL TLS 中继(Mode="mysql"):SSLRequest 分段补全兼容懒连接,TLS 端到端透传,不拉 gost、不接触凭据 |
+| `ChildProcessJob` | GostWebUI.Core | kill-on-close Job Object:主进程死亡时内核兜底终止 gost 子进程 |
+| `Socks5Tester` | GostWebUI.Core | TCP / SOCKS5 端到端连接测试 |
+| `ConfigService` | GostWebUI.Services | config.json 与规则文件(rules.json)读写,持有当前配置与规则列表;规则文件路径迁移(防覆盖) |
+| `LogFileService` | GostWebUI.Services | 日志文件归档:按天滚动写 gost-yyyyMMdd.log,超过保留天数自动清理;自持锁,IO 失败静默重试 |
+| `StartupService` | GostWebUI.Services | 开机启动:HKCU Run 注册表读写(Debug 构建用独立值名) |
+| `ForwardRule` / `AppConfig` / `ConnectionTestResult` / `LogEntry` / `GostIntegrityInfo` | GostWebUI.Models | 数据模型与 DTO |
 
 ## 关键约束
 

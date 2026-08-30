@@ -1,4 +1,4 @@
-namespace PortForwarder.Models
+namespace GostWebUI.Models
 {
     // gost.exe 完整性状态 DTO(REST 层序列化为 camelCase 供前端展示)。
     public class GostIntegrityInfo

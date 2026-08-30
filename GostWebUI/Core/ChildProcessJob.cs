@@ -2,7 +2,7 @@ using System;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 
-namespace PortForwarder.Core
+namespace GostWebUI.Core
 {
     // 进程级 kill-on-close Job Object:gost 子进程启动后加入本 Job,
     // 主进程无论正常退出、崩溃还是被 taskkill /F 强杀,内核在 Job 句柄随进程回收时

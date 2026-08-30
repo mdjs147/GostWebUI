@@ -42,7 +42,7 @@ dotnet publish GostWebUI.csproj -p:PublishProfile=FolderProfile
 
 ## 目录结构
 
-按 `Models` / `Core` / `Services` / `Web` 分层,命名空间对应 `PortForwarder.*`:
+按 `Models` / `Core` / `Services` / `Web` 分层,命名空间对应 `GostWebUI.*`:
 
 ```
 Program.cs            入口:Mutex 单实例 → 手动组合服务 → 启动内嵌 Web → 托盘消息循环
@@ -54,7 +54,7 @@ wwwroot/index.html    无构建单页前端
 ```
 
 开发前请读:
-- `../README.md` — 公开仓库入口、项目关系与许可证状态
+- `../README.md` — 公开仓库入口、项目关系与许可证
 - `CLAUDE.md` — 上下文、架构决策、目录规范、代码约定
 - `docs/architecture.md` — 单进程双子系统架构与启动时序
 - `docs/api-contract.md` — 前后端 REST 契约
@@ -68,14 +68,14 @@ wwwroot/index.html    无构建单页前端
 - **gost.exe 防替换(指纹锁定)**:首次成功启动规则时会自动锁定 gost.exe 的 SHA-256 指纹;之后文件内容变化(被替换或你升级了 gost)会**拒绝启动**并在规则日志说明原因,到网页「设置」里核对指纹后点「信任当前文件」即可恢复。想要更硬的防线,把程序目录放到仅管理员可写的位置(如 `C:\Program Files\GostWebUI\`;该形态下保存配置/规则/日志会失败,可在「设置 → 存储」把规则文件与日志目录指到用户可写的位置,`config.json` 仍需单独放宽写权限)。
 - gost 只在有连接时才向代理端口拨号;使用前请确认所选代理软件已运行，并且配置的 SOCKS5 或 HTTP 端口正在监听。
 - 目前只做 **TCP**;UDP 目标不在本期范围。
-- Kestrel 只绑 `127.0.0.1`,不对外。改端口需重启。默认端口:正式版 `31847`、开发构建 `38517`(旧版默认 18011 首次运行自动迁移)。
-- **数据存储**:全局配置存于 exe 同目录 `config.json`(旧版 `portforwarder.config.json` 会在首次运行时自动迁移);**规则单独存于 `rules.json`**(默认 exe 同目录,旧版内嵌在 config.json 里的规则首次运行自动迁出)。规则文件的位置可在网页「设置 → 存储」里修改:修改即把当前规则迁移到新位置,新位置已有同名文件时会拒绝(防覆盖),旧文件保留作备份。
+- Kestrel 只绑 `127.0.0.1`,不对外。改端口需重启。默认端口:正式版 `31847`、开发构建 `38517`。
+- **数据存储**:全局配置存于 exe 同目录 `config.json`;**规则单独存于 `rules.json`**(默认 exe 同目录)。规则文件的位置可在网页「设置 → 存储」里修改:修改即把当前规则迁移到新位置,新位置已有同名文件时会拒绝(防覆盖),旧文件保留作备份。
 - **运行日志落盘**:每条规则的 gost 输出除了网页实时显示(内存 500 行),还按天写入日志目录下的 `gost-yyyyMMdd.log`(默认 exe 同目录 `logs`,行首带时间与规则名)。日志目录与**最大保留天数**都在「设置 → 存储」里配置:文件日期超过保留天数自动删除,`0` 表示永久保留(默认 7 天)。
 - 「开机启动」写 `HKCU\...\Run` 注册表(当前用户、免管理员);exe 移动位置后,下次启动会自动修正注册路径。
 
 ## 许可证、贡献与安全
 
-- GostWebUI 自身的项目许可证尚待维护者确定；在根目录出现 `LICENSE` 前，不要把 GOST 的 MIT License 误认为本项目许可证。
+- GostWebUI 自身采用 [MIT License](../LICENSE)；GOST、.NET 等第三方项目仍分别适用其各自许可证。
 - 第三方归属和分发边界：[THIRD-PARTY-NOTICES.md](../THIRD-PARTY-NOTICES.md)
 - 贡献说明：[CONTRIBUTING.md](../CONTRIBUTING.md)
 - 安全问题报告：[SECURITY.md](../SECURITY.md)

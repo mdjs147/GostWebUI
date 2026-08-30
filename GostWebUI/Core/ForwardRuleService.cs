@@ -2,10 +2,10 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
-using PortForwarder.Models;
-using PortForwarder.Services;
+using GostWebUI.Models;
+using GostWebUI.Services;
 
-namespace PortForwarder.Core
+namespace GostWebUI.Core
 {
     // 多规则的 gost 进程注册表 + 每规则日志环形缓冲。作为 API / 托盘的服务层。
     // 依赖 ConfigService 取配置与落盘、LogFileService 做日志文件归档;

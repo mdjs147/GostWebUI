@@ -1,7 +1,4 @@
-using System.Collections.Generic;
-using System.Text.Json.Serialization;
-
-namespace PortForwarder.Models
+namespace GostWebUI.Models
 {
     // 全局配置:Web 端口、gost 路径、存储位置(规则文件 / 日志目录 / 日志保留天数)。
     // 序列化到 exe 同目录 config.json(启动锚点,固定位置);规则本体单独存放于 RulesPath 指向的文件。
@@ -14,9 +11,6 @@ namespace PortForwarder.Models
 #else
         public const int DefaultWebPort = 31847;
 #endif
-
-        // 旧版本的默认端口:ConfigService.Load 时一次性迁移到 DefaultWebPort
-        public const int LegacyDefaultWebPort = 18011;
 
         // 日志文件保留天数:默认一周;0 = 永久保留(不清理);上限防手滑输错
         public const int DefaultLogRetentionDays = 7;
@@ -33,13 +27,7 @@ namespace PortForwarder.Models
         // 日志目录:null/空 = exe 同目录 logs 子目录;gost 运行日志按天写入其中的 gost-yyyyMMdd.log
         public string LogDirectory { get; set; }
         // 日志文件最大保留天数,文件日期超期自动删除;0 = 永久保留。
-        // JSON 中缺失该字段(旧配置)时保持构造函数默认值,不会误判为 0。
         public int LogRetentionDays { get; set; }
-
-        // 旧版本把规则内嵌在 config.json:本属性仅作为读旧文件时的迁移载体,
-        // ConfigService.Load 把它并入规则文件后置 null,落盘时(WhenWritingNull)不再写出该字段。
-        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-        public List<ForwardRule> Rules { get; set; }
 
         public AppConfig()
         {
@@ -49,7 +37,6 @@ namespace PortForwarder.Models
             RulesPath = null;
             LogDirectory = null;
             LogRetentionDays = DefaultLogRetentionDays;
-            Rules = null;
         }
     }
 }

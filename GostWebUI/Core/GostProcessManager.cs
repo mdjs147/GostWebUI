@@ -3,9 +3,9 @@ using System.Diagnostics;
 using System.IO;
 using System.Security.Cryptography;
 using System.Text;
-using PortForwarder.Models;
+using GostWebUI.Models;
 
-namespace PortForwarder.Core
+namespace GostWebUI.Core
 {
     // 负责单条规则对应的 gost 子进程:启动、停止、捕获 stdout/stderr。
     // 实现 IForwardManager,与进程内的 MySqlRelayManager 一同被 ForwardRuleService 统一调度。

@@ -1,4 +1,4 @@
-namespace PortForwarder.Models
+namespace GostWebUI.Models
 {
     // 连接测试结果 DTO,直接序列化为 JSON 返回前端。
     public class ConnectionTestResult

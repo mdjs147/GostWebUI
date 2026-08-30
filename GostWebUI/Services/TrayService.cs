@@ -4,9 +4,9 @@ using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using System.Windows.Forms;
-using PortForwarder.Core;
+using GostWebUI.Core;
 
-namespace PortForwarder.Services
+namespace GostWebUI.Services
 {
     // 托盘上下文:承载 NotifyIcon 与右键菜单。程序主线程运行本上下文的消息循环。
     // 关闭浏览器不影响本进程;只有「退出」菜单才真正结束。
@@ -57,7 +57,7 @@ namespace PortForwarder.Services
         // 资源缺失时退回系统默认图标,不让托盘起不来。
         private static Icon LoadTrayIcon()
         {
-            Stream stream = typeof(TrayService).Assembly.GetManifestResourceStream("PortForwarder.app.ico");
+            Stream stream = typeof(TrayService).Assembly.GetManifestResourceStream("GostWebUI.app.ico");
             if (stream == null)
             {
                 return SystemIcons.Application;

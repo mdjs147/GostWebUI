@@ -3,12 +3,12 @@ using System.Diagnostics;
 using System.Net.Sockets;
 using System.Threading;
 using System.Windows.Forms;
-using PortForwarder.Core;
-using PortForwarder.Models;
-using PortForwarder.Services;
-using PortForwarder.Web;
+using GostWebUI.Core;
+using GostWebUI.Models;
+using GostWebUI.Services;
+using GostWebUI.Web;
 
-namespace PortForwarder
+namespace GostWebUI
 {
     internal static class Program
     {
@@ -53,8 +53,6 @@ namespace PortForwarder
                 Socks5Tester tester = new Socks5Tester();
                 StartupService startupService = new StartupService();
 
-                // 项目更名(MyPortForwarder → GostWebUI)后的一次性注册值迁移
-                startupService.MigrateLegacyValueName();
                 // 已启用开机启动时刷新注册路径(exe 被移动/升级后自动指向新位置)
                 startupService.RefreshPathIfEnabled();
 

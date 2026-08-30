@@ -5,11 +5,11 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using PortForwarder.Core;
-using PortForwarder.Models;
-using PortForwarder.Services;
+using GostWebUI.Core;
+using GostWebUI.Models;
+using GostWebUI.Services;
 
-namespace PortForwarder.Web
+namespace GostWebUI.Web
 {
     // ===== 请求体 DTO =====
     public class ConfigUpdateDto

@@ -3,7 +3,7 @@ using System.Globalization;
 using System.IO;
 using System.Text;
 
-namespace PortForwarder.Services
+namespace GostWebUI.Services
 {
     // gost 运行日志的文件落盘:按天滚动(gost-yyyyMMdd.log),文件日期超过保留天数自动删除。
     // 网页上的实时日志仍走 ForwardRuleService 的内存环形缓冲,本服务只负责持久化归档。

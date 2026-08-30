@@ -87,7 +87,7 @@ ForwardRule 结构:
 ```json
 {
   "id": "3f2a...",            // 服务端生成;新建可省略
-  "name": "41011-MyPortForwarder",
+  "name": "41011-SOCKS5",
   "listenAddress": "127.0.0.1",
   "listenPort": 41011,
   "targetHost": "192.0.2.10",
