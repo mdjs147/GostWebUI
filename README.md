@@ -45,6 +45,22 @@ dotnet run
 - [贡献指南](CONTRIBUTING.md)
 - [安全政策](SECURITY.md)
 
+## 持续集成与发布
+
+GitHub Actions 在提交到 `main`、针对 `main` 的 Pull Request 以及手动运行时执行 Release 构建，并保留 7 天的 `win-x64` 单文件构建产物。
+
+发布工作流支持两种触发方式：
+
+- 推送符合 `vMAJOR.MINOR.PATCH` 的标签，例如 `v2.1.1`；
+- 在 GitHub Actions 的 `Release` 工作流中手动输入标签。
+
+标签中的基础版本必须与 `GostWebUI/GostWebUI.csproj` 的 `<Version>` 一致。工作流会创建 GitHub Release，并上传：
+
+- `GostWebUI-<version>-win-x64.zip`：`GostWebUI.exe`、MIT、第三方声明和使用文档；
+- 同名 `.sha256` 文件：用于校验 ZIP 完整性。
+
+正式发布前应确认 CI 为绿色、版本号正确，并在本地完成单文件发布验证。Release 工作流使用仓库内置的 `GITHUB_TOKEN`，不需要保存个人访问令牌。
+
 ## 许可证
 
 GostWebUI 采用 [MIT License](LICENSE)，版权归 `mdjs147` 所有。

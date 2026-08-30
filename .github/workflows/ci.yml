@@ -1,0 +1,72 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: build
+    runs-on: windows-latest
+    timeout-minutes: 20
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: true
+      DOTNET_NOLOGO: true
+      PROJECT_PATH: GostWebUI/GostWebUI.csproj
+      SOLUTION_PATH: GostWebUI/GostWebUI.slnx
+      PUBLISH_DIR: ${{ github.workspace }}\artifacts\publish
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: 10.0.400
+
+      - name: Restore
+        shell: pwsh
+        run: dotnet restore $env:PROJECT_PATH --runtime win-x64
+
+      - name: Build
+        shell: pwsh
+        run: dotnet build $env:SOLUTION_PATH --configuration Release --no-restore
+
+      - name: Publish
+        shell: pwsh
+        run: >-
+          dotnet publish $env:PROJECT_PATH
+          --configuration Release
+          --no-restore
+          -p:PublishProfile=FolderProfile
+          -p:PublishDir=$env:PUBLISH_DIR
+
+      - name: Verify single-file output
+        shell: pwsh
+        run: |
+          $files = @(Get-ChildItem -LiteralPath $env:PUBLISH_DIR -File)
+          if ($files.Count -ne 1 -or $files[0].Name -ne "GostWebUI.exe") {
+            $names = ($files | ForEach-Object Name) -join ", "
+            throw "Expected only GostWebUI.exe, found: $names"
+          }
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: GostWebUI-win-x64
+          path: ${{ env.PUBLISH_DIR }}\GostWebUI.exe
+          if-no-files-found: error
+          retention-days: 7

@@ -1,0 +1,159 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag, for example v2.1.1"
+        required: true
+        type: string
+      prerelease:
+        description: "Mark the release as a prerelease"
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}-${{ inputs.tag }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: release
+    runs-on: windows-latest
+    timeout-minutes: 25
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: true
+      DOTNET_NOLOGO: true
+      PROJECT_PATH: GostWebUI/GostWebUI.csproj
+      PUBLISH_DIR: ${{ runner.temp }}\gostwebui-publish
+      PACKAGE_ROOT: ${{ runner.temp }}\gostwebui-package
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: 10.0.400
+
+      - name: Resolve and validate release metadata
+        id: metadata
+        shell: pwsh
+        env:
+          INPUT_TAG: ${{ inputs.tag }}
+          INPUT_PRERELEASE: ${{ inputs.prerelease }}
+        run: |
+          $tag = if ($env:GITHUB_EVENT_NAME -eq "workflow_dispatch") {
+            $env:INPUT_TAG
+          } else {
+            $env:GITHUB_REF_NAME
+          }
+
+          if ($tag -notmatch '^v(?<version>\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?)$') {
+            throw "Release tag must match vMAJOR.MINOR.PATCH or a SemVer prerelease. Received: $tag"
+          }
+
+          $version = $Matches.version
+          $baseVersion = ($version -split '-', 2)[0]
+          [xml]$project = Get-Content -LiteralPath $env:PROJECT_PATH -Raw
+          $projectVersion = [string]$project.Project.PropertyGroup.Version
+          if ($baseVersion -ne $projectVersion) {
+            throw "Tag version $baseVersion does not match project version $projectVersion"
+          }
+
+          $isPrerelease = $version.Contains('-') -or $env:INPUT_PRERELEASE -eq 'true'
+          "tag=$tag" >> $env:GITHUB_OUTPUT
+          "version=$version" >> $env:GITHUB_OUTPUT
+          "prerelease=$($isPrerelease.ToString().ToLowerInvariant())" >> $env:GITHUB_OUTPUT
+
+      - name: Restore
+        shell: pwsh
+        run: dotnet restore $env:PROJECT_PATH --runtime win-x64
+
+      - name: Publish
+        shell: pwsh
+        env:
+          RELEASE_VERSION: ${{ steps.metadata.outputs.version }}
+        run: >-
+          dotnet publish $env:PROJECT_PATH
+          --configuration Release
+          --no-restore
+          -p:PublishProfile=FolderProfile
+          -p:PublishDir=$env:PUBLISH_DIR
+          -p:Version=$env:RELEASE_VERSION
+
+      - name: Build release package
+        id: package
+        shell: pwsh
+        env:
+          RELEASE_VERSION: ${{ steps.metadata.outputs.version }}
+        run: |
+          $publishedFiles = @(Get-ChildItem -LiteralPath $env:PUBLISH_DIR -File)
+          if ($publishedFiles.Count -ne 1 -or $publishedFiles[0].Name -ne "GostWebUI.exe") {
+            $names = ($publishedFiles | ForEach-Object Name) -join ", "
+            throw "Expected only GostWebUI.exe, found: $names"
+          }
+
+          $packageName = "GostWebUI-$env:RELEASE_VERSION-win-x64"
+          $packageDir = Join-Path $env:PACKAGE_ROOT $packageName
+          New-Item -ItemType Directory -Path $packageDir -Force | Out-Null
+          Copy-Item -LiteralPath (Join-Path $env:PUBLISH_DIR "GostWebUI.exe") -Destination $packageDir
+          Copy-Item -LiteralPath "LICENSE" -Destination $packageDir
+          Copy-Item -LiteralPath "THIRD-PARTY-NOTICES.md" -Destination $packageDir
+          Copy-Item -LiteralPath "README.md" -Destination $packageDir
+          Copy-Item -LiteralPath "GostWebUI/README.md" -Destination (Join-Path $packageDir "README-usage.md")
+
+          $zipPath = Join-Path $env:RUNNER_TEMP "$packageName.zip"
+          Compress-Archive -Path $packageDir -DestinationPath $zipPath -CompressionLevel Optimal
+          $shaPath = "$zipPath.sha256"
+          $hash = (Get-FileHash -LiteralPath $zipPath -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  $([IO.Path]::GetFileName($zipPath))" | Set-Content -LiteralPath $shaPath -Encoding ascii
+
+          "zip_path=$zipPath" >> $env:GITHUB_OUTPUT
+          "sha_path=$shaPath" >> $env:GITHUB_OUTPUT
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: GostWebUI-${{ steps.metadata.outputs.version }}-win-x64
+          path: |
+            ${{ steps.package.outputs.zip_path }}
+            ${{ steps.package.outputs.sha_path }}
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Create GitHub Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.metadata.outputs.tag }}
+          IS_PRERELEASE: ${{ steps.metadata.outputs.prerelease }}
+          ZIP_PATH: ${{ steps.package.outputs.zip_path }}
+          SHA_PATH: ${{ steps.package.outputs.sha_path }}
+        run: |
+          $arguments = @(
+            "release", "create", $env:RELEASE_TAG,
+            $env:ZIP_PATH,
+            $env:SHA_PATH,
+            "--repo", $env:GITHUB_REPOSITORY,
+            "--target", $env:GITHUB_SHA,
+            "--title", "GostWebUI $env:RELEASE_TAG",
+            "--generate-notes"
+          )
+          if ($env:IS_PRERELEASE -eq 'true') {
+            $arguments += "--prerelease"
+          }
+          & gh @arguments
+          if ($LASTEXITCODE -ne 0) {
+            throw "gh release create failed with exit code $LASTEXITCODE"
+          }
