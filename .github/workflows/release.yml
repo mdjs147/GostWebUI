@@ -32,8 +32,8 @@ jobs:
       DOTNET_CLI_TELEMETRY_OPTOUT: true
       DOTNET_NOLOGO: true
       PROJECT_PATH: GostWebUI/GostWebUI.csproj
-      PUBLISH_DIR: ${{ runner.temp }}\gostwebui-publish
-      PACKAGE_ROOT: ${{ runner.temp }}\gostwebui-package
+      PUBLISH_DIR: ${{ github.workspace }}\artifacts\release-publish
+      PACKAGE_ROOT: ${{ github.workspace }}\artifacts\release-package
 
     steps:
       - name: Checkout
